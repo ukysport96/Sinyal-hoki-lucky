@@ -1,0 +1,10 @@
+{
+  "name": "Gold Signal AI",
+  "short_name": "Gold Signal",
+  "description": "Asisten analisis XAUUSD pribadi",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#101923",
+  "theme_color": "#101923",
+  "icons": []
+}

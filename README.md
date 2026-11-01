@@ -1,31 +1,27 @@
-# Gold Signal AI — Android Prototype 0.1.0
+# Gold Signal AI — PWA prototype for Android
 
-Aplikasi Android pribadi untuk analisis XAU/USD dengan H1, M5, M1; EMA 20/200; level support/resistance; kandidat entry, SL, TP1/TP2; dan kalkulator batas risiko nominal. Eksekusi trading tetap manual di HFM MT5.
+This is a mobile-first installable web app prototype, useful when the user only has an Android phone. It is not an APK and it is not yet a production trading system.
 
-## Status penting
-- Ini adalah prototipe kode, bukan APK yang sudah dikompilasi atau aplikasi siap produksi.
-- Versi awal mengambil data ketika tombol ditekan; belum ada streaming/polling otomatis di latar belakang.
-- API key dibutuhkan. Dukungan `XAU/USD`, interval `1min`, `5min`, `1h`, kuota, serta ketentuan data real-time bergantung pada paket Twelve Data dan harus diuji dengan akun pengguna.
-- Harga provider dapat berbeda dari bid/ask dan spread HFM.
-- Logika sinyal adalah aturan teknikal sederhana, bukan strategi yang sudah terbukti menguntungkan.
-- Kalkulator risiko hanya menghitung nominal risiko dari saldo dan persentase. Estimasi risiko berdasarkan lot belum dihitung karena perlu spesifikasi kontrak/tick value HFM yang sesuai jenis akun.
+## Run from Android
+To install as an app, host the files on an HTTPS static host. You can do this from a mobile browser using a repository/site hosting service:
+1. Create a repository on a Git hosting service.
+2. Upload `index.html`, `manifest.json`, and `sw.js` to the repository root.
+3. Enable its static Pages hosting feature.
+4. Open the generated HTTPS site in Chrome on Android.
+5. Chrome menu → Add to Home screen / Install app.
 
-## Cara membuka dan menjalankan
-1. Instal Android Studio di komputer.
-2. Ekstrak ZIP ini.
-3. Android Studio → Open → pilih folder `GoldSignalAI_Android`.
-4. Tunggu Gradle Sync. Gunakan JDK 17 dan Android SDK 35.
-5. Jalankan pada emulator atau HP Android dengan USB debugging.
-6. Daftar/masuk ke Twelve Data, buat API key, masukkan di aplikasi.
-7. Tekan **Ambil data & analisis**.
+Some free hosting services or provider API plans may block requests or require a supported plan. API key is only held in page memory and is not saved, but browser requests still expose it to the user's browser/network and it should not be shared. A production version should use a backend proxy and secret storage.
 
-## Cara kerja sinyal
-- H1 bullish jika harga terakhir > EMA20 > EMA200; bearish jika harga terakhir < EMA20 < EMA200.
-- M5 menggunakan aturan searah yang sama untuk setup.
-- M1 mengonfirmasi arah berdasarkan posisi harga terhadap EMA20.
-- Jika semua timeframe tidak searah, aplikasi menampilkan `NO TRADE`.
-- Support/resistance diambil dari low/high 20 candle M5 terakhir.
-- SL dan target dihitung secara sederhana dari level tersebut dan rasio 1R/2R.
+## Market data
+Uses Twelve Data REST endpoint for XAU/USD with `1min`, `5min`, and `1h`. Availability and real-time access depend on provider plan. Updates only when the user presses the button, so this is not streaming/polling live yet.
 
-## Sebelum dipakai untuk uang sungguhan
-Tambahkan pembaruan otomatis yang terukur, pengecekan timestamp candle dan keterlambatan data, validasi spread HFM, penanganan berita berdampak tinggi, pengamanan API key, pengujian historis tanpa look-ahead bias, dan pengujian akun demo. Jangan gunakan sinyal ini sebagai satu-satunya dasar transaksi.
+## Signal rules
+- H1 and M5 bullish when last close > EMA20 > EMA200.
+- H1 and M5 bearish when last close < EMA20 < EMA200.
+- M1 confirmation is close relative to EMA20.
+- If not aligned, `NO TRADE`.
+- Support/resistance: lowest low / highest high over latest 20 M5 candles.
+- SL/TP1/TP2 are simple candidate calculations; they are not validated trading instructions.
+
+## Safety
+No MT5 integration, no order execution, no HFM spread validation, no economic calendar, no backtest, no lot-based loss calculation. Always verify quotes on HFM MT5 and test on demo.

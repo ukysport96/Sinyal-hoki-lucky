@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#101923">
+<meta name="description" content="Gold Signal AI — asisten analisis XAUUSD">
+<link rel="manifest" href="manifest.json">
+<title>Gold Signal AI</title>
+<style>
+:root{color-scheme:dark;--bg:#101923;--panel:#1b2835;--mint:#6be0b4;--red:#ff8e91;--gold:#f6cb78;--muted:#a6b6c7}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:#fff;font:15px system-ui,-apple-system,Segoe UI,sans-serif}
+main{max-width:680px;margin:auto;padding:18px 15px 40px}.brand{color:var(--mint);letter-spacing:2px;font-size:12px;font-weight:800}.sub{color:var(--muted);font-size:12px}
+h1{font-size:27px;margin:5px 0}h2{font-size:17px;margin:0 0 10px}.card{background:var(--panel);border-radius:17px;padding:16px;margin:13px 0}
+label{display:block;color:var(--muted);font-size:12px;margin:9px 0 5px}input{width:100%;background:#101923;color:#fff;border:1px solid #405162;border-radius:10px;padding:12px;font-size:16px}
+button{border:0;border-radius:11px;padding:13px 14px;font-size:14px;font-weight:800;background:var(--mint);color:#101923;width:100%;margin-top:10px}
+button.secondary{background:#2b3b4b;color:#fff}button:disabled{opacity:.6}
+.signal{font-size:23px;font-weight:900;margin:5px 0}.green{color:var(--mint)}.red{color:var(--red)}.gold{color:var(--gold)}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:9px}.tile{background:#101923;border-radius:11px;padding:12px}.tile small{display:block;color:var(--muted);font-size:11px}.tile strong{display:block;font-size:18px;margin-top:4px;overflow-wrap:anywhere}
+.row{display:flex;justify-content:space-between;gap:12px;padding:8px 0;border-bottom:1px solid #344454}.row span:first-child{color:var(--muted)}.row span:last-child{text-align:right;font-weight:700}
+.notice{font-size:12px;line-height:1.5;color:#e4ddc7;background:#292a24;border-radius:12px;padding:12px}
+#error{color:var(--red);white-space:pre-wrap;font-size:12px}.hidden{display:none}
+</style>
+</head>
+<body><main>
+<div class="brand">GOLD SIGNAL AI</div><h1>XAUUSD · MT5</h1><div class="sub">Asisten scalping · sinyal saja, eksekusi manual</div>
+<section class="card">
+<h2>Koneksi data harga</h2>
+<div class="sub">Provider prototipe: Twelve Data · XAU/USD. API key hanya disimpan sementara selama halaman terbuka.</div>
+<label for="key">Twelve Data API key</label><input id="key" type="password" autocomplete="off" placeholder="Masukkan API key">
+<button id="analyze">Ambil data & analisis</button>
+<div id="error"></div>
+<p class="sub">Versi awal memperbarui data saat tombol ditekan, bukan streaming otomatis. Dukungan simbol, interval, dan kuota bergantung pada paket provider.</p>
+</section>
+<section id="results" class="card hidden">
+<div class="sub">HASIL ANALISIS</div><div id="signal" class="signal">NO TRADE</div><div id="price" style="font-size:22px;font-weight:800"></div><div id="updated" class="sub"></div>
+<p id="reason"></p>
+<div class="row"><span>H1 · Tren utama</span><span id="h1"></span></div>
+<div class="row"><span>M5 · Setup</span><span id="m5"></span></div>
+<div class="row"><span>M1 · Konfirmasi</span><span id="m1"></span></div>
+<div style="height:8px"></div>
+<div class="grid">
+<div class="tile"><small>SUPPORT M5</small><strong id="support">—</strong></div>
+<div class="tile"><small>RESISTANCE M5</small><strong id="resistance">—</strong></div>
+<div class="tile"><small>ENTRY KANDIDAT</small><strong id="entry">—</strong></div>
+<div class="tile"><small>STOP LOSS</small><strong id="sl">—</strong></div>
+<div class="tile"><small>TAKE PROFIT 1</small><strong id="tp1">—</strong></div>
+<div class="tile"><small>TAKE PROFIT 2</small><strong id="tp2">—</strong></div>
+</div>
+</section>
+<section class="card">
+<h2>Manajemen risiko</h2><div class="sub">Menghitung batas risiko nominal, bukan kerugian lot aktual.</div>
+<label for="balance">Saldo akun (USD)</label><input id="balance" type="number" min="0" step="any" value="100">
+<label for="risk">Risiko per transaksi (%)</label><input id="risk" type="number" min="0.1" max="100" step="0.1" value="1">
+<div class="tile" style="margin-top:10px"><small>BATAS RISIKO NOMINAL</small><strong id="riskCash">$1.00</strong></div>
+</section>
+<section class="notice"><b>Peringatan prototipe:</b> sinyal memakai aturan EMA sederhana dan level dari 20 candle M5 terakhir. Belum memvalidasi spread HFM, berita ekonomi, candle tertutup, atau profitabilitas. Harga provider dapat berbeda dari harga bid/ask HFM. Uji di demo dan verifikasi harga di MT5.</section>
+<p class="sub" style="text-align:center">Gold Signal AI · PWA Prototype 0.1.0</p>
+</main>
+<script>
+const $=id=>document.getElementById(id);
+const fmt=n=>Number(n).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
+function ema(values,p){let a=2/(p+1),r=values.slice(0,p).reduce((x,y)=>x+y,0)/p;for(const v of values.slice(p))r=a*v+(1-a)*r;return r}
+async function fetchTF(interval,key){
+ const url=`https://api.twelvedata.com/time_series?symbol=XAU/USD&interval=${encodeURIComponent(interval)}&outputsize=250&apikey=${encodeURIComponent(key)}`;
+ const response=await fetch(url);if(!response.ok)throw Error('HTTP '+response.status+' dari penyedia data.');
+ const j=await response.json();if(j.status==='error'||!j.values)throw Error(j.message||'Data tidak tersedia. Periksa API key, paket, simbol, dan interval.');
+ const candles=j.values.map(x=>({time:x.datetime,open:+x.open,high:+x.high,low:+x.low,close:+x.close})).reverse();
+ if(candles.length<205)throw Error(`Data ${interval} hanya ${candles.length} candle; perlu minimal 205 untuk EMA200.`);
+ const c=candles.map(x=>x.close);return {candles,ema20:ema(c,20),ema200:ema(c,200),last:c[c.length-1]};
+}
+function trend(d){if(d.last>d.ema20&&d.ema20>d.ema200)return 'Bullish';if(d.last<d.ema20&&d.ema20<d.ema200)return 'Bearish';return 'Campuran'}
+function analyze(h1,m5,m1){
+ const t1=trend(h1),t5=trend(m5),tMini=m1.last>m1.ema20?'Bullish':'Bearish';
+ let sig=(t1==='Bullish'&&t5==='Bullish'&&tMini==='Bullish')?'KANDIDAT BUY':(t1==='Bearish'&&t5==='Bearish'&&tMini==='Bearish')?'KANDIDAT SELL':'NO TRADE';
+ const recent=m5.candles.slice(-20),support=Math.min(...recent.map(x=>x.low)),resistance=Math.max(...recent.map(x=>x.high)),entry=m5.last;
+ let sl=null,tp1=null,tp2=null;
+ if(sig==='KANDIDAT BUY'){sl=Math.min(support,entry-(resistance-support)*.5);const r=entry-sl;tp1=entry+r;tp2=entry+2*r}
+ if(sig==='KANDIDAT SELL'){sl=Math.max(resistance,entry+(resistance-support)*.5);const r=sl-entry;tp1=entry-r;tp2=entry-2*r}
+ return {sig,t1,t5,tMini,support,resistance,entry,sl,tp1,tp2,
+ reason:sig==='NO TRADE'?'Timeframe belum searah. Tunggu konfirmasi; jangan memaksakan entry.':'Timeframe searah menurut aturan EMA. Verifikasi candle tertutup, spread, dan struktur harga sebelum mengambil keputusan.'};
+}
+$('analyze').onclick=async()=>{
+ const key=$('key').value.trim();if(!key){$('error').textContent='Masukkan API key terlebih dahulu.';return}
+ $('analyze').disabled=true;$('analyze').textContent='Mengambil data...';$('error').textContent='';
+ try{
+ const [h1,m5,m1]=await Promise.all([fetchTF('1h',key),fetchTF('5min',key),fetchTF('1min',key)]);
+ const a=analyze(h1,m5,m1);$('results').classList.remove('hidden');
+ $('signal').textContent=a.sig;$('signal').className='signal '+(a.sig==='KANDIDAT BUY'?'green':a.sig==='KANDIDAT SELL'?'red':'gold');
+ $('price').textContent='Harga data: '+fmt(m5.last);$('updated').textContent='Waktu pengambilan: '+new Date().toLocaleString('id-ID');
+ $('reason').textContent=a.reason;$('h1').textContent=a.t1;$('m5').textContent=a.t5;$('m1').textContent=a.tMini;
+ for(const [id,val] of Object.entries({support:a.support,resistance:a.resistance,entry:a.entry,sl:a.sl,tp1:a.tp1,tp2:a.tp2}))$(id).textContent=val==null?'—':fmt(val);
+ }catch(e){$('error').textContent=e.message||'Gagal mengambil data.'}
+ finally{$('analyze').disabled=false;$('analyze').textContent='Ambil data & analisis'}
+};
+function updateRisk(){const b=+$('balance').value,r=+$('risk').value;$('riskCash').textContent=(b>0&&r>0&&r<=100)?'$'+fmt(b*r/100):'—'}
+$('balance').addEventListener('input',updateRisk);$('risk').addEventListener('input',updateRisk);updateRisk();
+if('serviceWorker' in navigator && location.protocol.startsWith('http'))navigator.serviceWorker.register('./sw.js').catch(()=>{});
+</script>
+</body></html>
